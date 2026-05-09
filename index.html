@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HALO 股息策略看板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ─── CSS Variables ─────────────────────────────────────────────────── */
+:root {
+  --bg:        #0a0c10;
+  --bg2:       #111318;
+  --bg3:       #181c24;
+  --border:    #252a35;
+  --border2:   #1e2330;
+  --text:      #ccd6f6;
+  --text-dim:  #6b7a99;
+  --text-faint:#3d4a63;
+  --gold:      #f0b429;
+  --gold-dim:  #7a5c14;
+  --green:     #4ade80;
+  --green-dim: #14532d;
+  --red:       #f87171;
+  --red-dim:   #450a0a;
+  --amber:     #fbbf24;
+  --amber-dim: #4d370a;
+  --blue:      #60a5fa;
+  --blue-dim:  #1e3a5f;
+  --gray:      #64748b;
+  --gray-dim:  #1e2535;
+}
+
+/* ─── Reset & Base ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 13px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans SC', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.mono { font-family: 'IBM Plex Mono', monospace; }
+
+/* ─── Header ─────────────────────────────────────────────────────────── */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.logo-mark {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--gold), #b07d10);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; color: #000; letter-spacing: -0.5px;
+}
+.header-title { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 0.5px; }
+.header-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+.update-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; color: var(--text-dim);
+  background: var(--bg3); border: 1px solid var(--border);
+  padding: 4px 10px; border-radius: 20px;
+}
+.update-badge span { color: var(--gold); }
+
+/* ─── Summary Cards ──────────────────────────────────────────────────── */
+.summary {
+  display: flex; gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border2);
+  flex-wrap: wrap;
+}
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 18px;
+  min-width: 110px;
+}
+.card-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.8px; text-transform: uppercase; }
+.card-value { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 600; margin-top: 4px; }
+.card.total  .card-value { color: var(--text); }
+.card.strong .card-value { color: var(--green); }
+.card.buy    .card-value { color: var(--gold); }
+.card.watch  .card-value { color: var(--amber); }
+.card.hold   .card-value { color: var(--gray); }
+.card.sell   .card-value { color: var(--red); }
+
+/* ─── Toolbar ────────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border2);
+  flex-wrap: wrap;
+}
+.search-box {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 12px;
+  color: var(--text); font-size: 12px; font-family: inherit;
+  outline: none; width: 200px;
+  transition: border-color 0.15s;
+}
+.search-box:focus { border-color: var(--gold); }
+.search-box::placeholder { color: var(--text-faint); }
+
+.filter-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab {
+  padding: 5px 12px; border-radius: 5px; border: 1px solid var(--border);
+  font-size: 11px; cursor: pointer; background: transparent;
+  color: var(--text-dim); transition: all 0.15s; font-family: inherit;
+}
+.tab:hover { border-color: var(--gold); color: var(--gold); }
+.tab.active { border-color: var(--gold); background: rgba(240,180,41,0.08); color: var(--gold); font-weight: 500; }
+.tab[data-signal="强买"].active  { border-color: var(--green); background: rgba(74,222,128,0.08); color: var(--green); }
+.tab[data-signal="买入"].active  { border-color: var(--gold); background: rgba(240,180,41,0.1); color: var(--gold); }
+.tab[data-signal="关注"].active  { border-color: var(--amber); background: rgba(251,191,36,0.08); color: var(--amber); }
+.tab[data-signal="卖出"].active,
+.tab[data-signal="止盈"].active  { border-color: var(--red); background: rgba(248,113,113,0.08); color: var(--red); }
+
+.sort-info { margin-left: auto; font-size: 11px; color: var(--text-faint); }
+
+/* ─── Table Wrapper ──────────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; position: relative; }
+
+/* ─── Column Groups (visual headers) ────────────────────────────────── */
+.col-group-header {
+  display: flex;
+  border-bottom: 1px solid var(--border2);
+  background: var(--bg);
+  position: sticky;
+  top: 69px; /* header height */
+  z-index: 50;
+  font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* ─── Table ──────────────────────────────────────────────────────────── */
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px;
+}
+thead {
+  position: sticky; top: 69px; z-index: 50;
+  background: var(--bg2);
+}
+thead th {
+  padding: 8px 10px; text-align: right;
+  font-size: 10px; font-weight: 500;
+  color: var(--text-dim); letter-spacing: 0.3px;
+  white-space: nowrap; border-bottom: 1px solid var(--border);
+  cursor: pointer; user-select: none;
+  transition: color 0.15s;
+}
+thead th:hover { color: var(--gold); }
+thead th.active-sort { color: var(--gold); }
+thead th.left { text-align: left; }
+.sort-arrow { display: inline-block; margin-left: 3px; opacity: 0.5; font-size: 9px; }
+thead th.active-sort .sort-arrow { opacity: 1; }
+
+/* Group label row */
+.th-group {
+  background: var(--bg);
+  font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text-faint); text-align: left !important;
+  padding: 4px 10px 3px !important;
+  border-top: 1px solid var(--border2);
+  border-bottom: none !important;
+  cursor: default !important;
+  pointer-events: none;
+}
+
+/* Sticky columns */
+.col-code, .col-name {
+  position: sticky; left: 0; z-index: 10; background: var(--bg2);
+}
+.col-name { left: 70px; }
+tbody .col-code, tbody .col-name { background: var(--bg); }
+tbody tr:hover .col-code,
+tbody tr:hover .col-name { background: var(--bg3); }
+
+tbody tr {
+  border-bottom: 1px solid var(--border2);
+  transition: background 0.08s;
+}
+tbody tr:hover { background: var(--bg3); }
+tbody td {
+  padding: 9px 10px; text-align: right;
+  white-space: nowrap;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  color: var(--text);
+}
+tbody td.left { text-align: left; }
+tbody td.text { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; }
+
+/* ─── Cell Colorings ─────────────────────────────────────────────────── */
+.up   { color: #ef4444; }  /* A股红涨 */
+.down { color: #22c55e; }  /* A股绿跌 */
+.neutral { color: var(--text-dim); }
+
+.yield-hot  { color: var(--green); font-weight: 600; }
+.yield-good { color: var(--gold);  font-weight: 500; }
+.yield-ok   { color: var(--amber); }
+.yield-low  { color: var(--red);   }
+
+.above-ma  { color: var(--red); }
+.below-ma  { color: var(--green); }
+
+.price-buy-strong  { color: var(--green); font-size: 10.5px; }
+.price-buy         { color: var(--gold);  font-size: 10.5px; }
+.price-watch       { color: var(--amber); font-size: 10.5px; }
+.price-profit      { color: var(--gray);  font-size: 10.5px; }
+.price-sell        { color: var(--red);   font-size: 10.5px; }
+
+.dim { color: var(--text-dim); }
+.faint { color: var(--text-faint); }
+
+/* ─── Signal Badge ───────────────────────────────────────────────────── */
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 600; font-family: 'Noto Sans SC', sans-serif;
+  letter-spacing: 0.5px;
+}
+.badge-强买 { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.25); }
+.badge-买入 { background: rgba(240,180,41,0.12); color: var(--gold);  border: 1px solid rgba(240,180,41,0.25); }
+.badge-关注 { background: rgba(251,191,36,0.10); color: var(--amber); border: 1px solid rgba(251,191,36,0.25); }
+.badge-持有 { background: rgba(100,116,139,0.12); color: var(--gray); border: 1px solid rgba(100,116,139,0.25); }
+.badge-止盈 { background: rgba(248,113,113,0.10); color: #fb923c; border: 1px solid rgba(251,146,60,0.25); }
+.badge-卖出 { background: rgba(248,113,113,0.12); color: var(--red);  border: 1px solid rgba(248,113,113,0.25); }
+.badge-NA   { background: rgba(100,116,139,0.08); color: var(--text-faint); border: 1px solid var(--border); }
+
+/* ─── Price Bar ──────────────────────────────────────────────────────── */
+.price-bar-wrap { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.price-bar-outer {
+  width: 60px; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden;
+}
+.price-bar-inner { height: 100%; border-radius: 2px; }
+
+/* ─── Empty / Loading ────────────────────────────────────────────────── */
+.state-msg {
+  text-align: center; padding: 80px 20px;
+  color: var(--text-dim); font-size: 13px;
+}
+.state-msg .icon { font-size: 32px; margin-bottom: 12px; }
+
+/* ─── Footer ─────────────────────────────────────────────────────────── */
+.footer {
+  padding: 16px 24px; border-top: 1px solid var(--border2);
+  font-size: 10px; color: var(--text-faint);
+  display: flex; gap: 20px; flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ─── Tooltip (column help) ──────────────────────────────────────────── */
+[data-tip] { position: relative; }
+[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 4px); left: 50%;
+  transform: translateX(-50%);
+  background: #1e2330; border: 1px solid var(--border);
+  color: var(--text); font-size: 10px; white-space: nowrap;
+  padding: 4px 8px; border-radius: 4px; z-index: 200;
+  pointer-events: none; font-weight: 400; font-family: 'Noto Sans SC', sans-serif;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3d4a63; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo-mark">H</div>
+    <div>
+      <div class="header-title">HALO 股息策略看板</div>
+      <div class="header-sub">Hydropower · Asset · Liquidity · Operations</div>
+    </div>
+  </div>
+  <div class="update-badge">更新于 <span id="updated-at">—</span></div>
+</div>
+
+<!-- ── Summary Cards ─────────────────────────────────────────────────────── -->
+<div class="summary" id="summary">
+  <div class="card total">
+    <div class="card-label">标的总数</div>
+    <div class="card-value" id="cnt-total">—</div>
+  </div>
+  <div class="card strong">
+    <div class="card-label">强买</div>
+    <div class="card-value" id="cnt-qiangmai">0</div>
+  </div>
+  <div class="card buy">
+    <div class="card-label">买入</div>
+    <div class="card-value" id="cnt-mairu">0</div>
+  </div>
+  <div class="card watch">
+    <div class="card-label">关注</div>
+    <div class="card-value" id="cnt-guanzhu">0</div>
+  </div>
+  <div class="card hold">
+    <div class="card-label">持有</div>
+    <div class="card-value" id="cnt-chiyu">0</div>
+  </div>
+  <div class="card sell">
+    <div class="card-label">止盈/卖出</div>
+    <div class="card-value" id="cnt-sell">0</div>
+  </div>
+</div>
+
+<!-- ── Toolbar ──────────────────────────────────────────────────────────── -->
+<div class="toolbar">
+  <input class="search-box" id="search" type="text" placeholder="搜索代码 / 名称…">
+  <div class="filter-tabs">
+    <button class="tab active" data-signal="全部">全部</button>
+    <button class="tab" data-signal="强买">强买</button>
+    <button class="tab" data-signal="买入">买入</button>
+    <button class="tab" data-signal="关注">关注</button>
+    <button class="tab" data-signal="持有">持有</button>
+    <button class="tab" data-signal="止盈">止盈</button>
+    <button class="tab" data-signal="卖出">卖出</button>
+  </div>
+  <div class="sort-info" id="sort-info">点击列头排序</div>
+</div>
+
+<!-- ── Table ────────────────────────────────────────────────────────────── -->
+<div class="table-wrap">
+  <table id="main-table">
+    <thead id="table-head"></thead>
+    <tbody id="table-body">
+      <tr><td colspan="30" class="state-msg">
+        <div class="icon">⏳</div>
+        正在加载数据…
+      </td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Footer ───────────────────────────────────────────────────────────── -->
+<div class="footer">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>强买 ≥ 4%</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div>买入 ≥ 3.75%</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>关注 ≥ 3.5%</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--gray)"></div>持有</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fb923c"></div>止盈 ≤ 3%</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>卖出 ≤ 2.5%</div>
+  <div style="margin-left:auto;color:var(--text-faint)">
+    数据来源：AKShare / 东方财富 · 仅供参考，不构成投资建议
+  </div>
+</div>
+
+<script>
+/* ─── Column Definitions ─────────────────────────────────────────────── */
+const COLS = [
+  // 基本信息
+  { key: "code",           label: "代码",       group: "基本信息", align: "left",  tip: "A股股票代码",       sticky: true,  cls: "col-code text" },
+  { key: "name",           label: "名称",       group: "",         align: "left",  tip: "股票简称",          sticky: true,  cls: "col-name text" },
+  { key: "total_mktcap",   label: "市值(亿)",   group: "",         align: "right", tip: "总市值（亿元）" },
+
+  // 实时行情
+  { key: "price",          label: "现价",       group: "行情",     align: "right", tip: "最新收盘价" },
+  { key: "change_pct",     label: "今日%",      group: "",         align: "right", tip: "当日涨跌幅" },
+  { key: "pe",             label: "PE(动)",     group: "",         align: "right", tip: "动态市盈率" },
+  { key: "pb",             label: "PB",         group: "",         align: "right", tip: "市净率" },
+
+  // 年度表现
+  { key: "return_1y",      label: "年涨跌%",    group: "年度表现", align: "right", tip: "过去252交易日涨跌幅" },
+  { key: "return_ytd",     label: "今年以来%",  group: "",         align: "right", tip: "年初至今涨跌幅" },
+  { key: "high_52w",       label: "52W高",      group: "",         align: "right", tip: "52周最高价" },
+  { key: "low_52w",        label: "52W低",      group: "",         align: "right", tip: "52周最低价" },
+
+  // 技术均线
+  { key: "ma250",          label: "MA250",      group: "均线定位", align: "right", tip: "250日均线（中周期信号）" },
+  { key: "ma250_dev",      label: "偏MA250%",   group: "",         align: "right", tip: "现价偏离250日均线百分比，负值=均线上方支撑" },
+  { key: "ma250w",         label: "MA250W",     group: "",         align: "right", tip: "250周均线（长周期宏观信号）" },
+  { key: "ma250w_dev",     label: "偏MA250W%",  group: "",         align: "right", tip: "现价偏离250周均线百分比" },
+
+  // 分红质量
+  { key: "ttm_dps",        label: "TTM股息",    group: "分红质量", align: "right", tip: "过去12个月累计每股派息（税前）" },
+  { key: "div_yield",      label: "股息率%",    group: "",         align: "right", tip: "TTM股息 ÷ 现价 × 100%（核心指标）" },
+  { key: "div_cagr_3y",    label: "股息3Y CAGR",group: "",         align: "right", tip: "近3年股息年均复合增长率" },
+  { key: "div_cagr_5y",    label: "股息5Y CAGR",group: "",         align: "right", tip: "近5年股息年均复合增长率" },
+
+  // 买卖参考价
+  { key: "price_at_400",   label: "@4%（强买）", group: "买卖参考价", align: "right", tip: "股息率=4%对应股价（强买区上限）" },
+  { key: "price_at_375",   label: "@3.75%（买入）", group: "",     align: "right", tip: "股息率=3.75%对应股价（买入区上限）" },
+  { key: "price_at_350",   label: "@3.5%（关注）",  group: "",     align: "right", tip: "股息率=3.5%对应股价（关注线）" },
+  { key: "price_at_300",   label: "@3%（止盈）",    group: "",     align: "right", tip: "股息率=3%对应股价（止盈参考）" },
+  { key: "price_at_250",   label: "@2.5%（卖出）",  group: "",     align: "right", tip: "股息率=2.5%对应股价（卖出参考）" },
+
+  // 除息管理
+  { key: "last_ex_div_date", label: "上次除息日",  group: "除息管理", align: "right", tip: "最近一次除权除息日",    cls: "text" },
+  { key: "last_div_amount",  label: "上次派息",    group: "",          align: "right", tip: "最近一次每股税前派息" },
+  { key: "days_since_ex_div",label: "距除息天",    group: "",          align: "right", tip: "距上次除息已过天数" },
+
+  // 信号
+  { key: "signal",         label: "信号",       group: "信号",     align: "right", tip: "综合股息率信号" },
+];
+
+/* ─── State ──────────────────────────────────────────────────────────── */
+let allData      = [];
+let sortKey      = "div_yield";
+let sortDir      = -1;   // -1 = desc
+let filterSignal = "全部";
+let searchQ      = "";
+
+/* ─── Helpers ────────────────────────────────────────────────────────── */
+const fmt  = (v, d=2) => v == null ? "—" : (+v).toFixed(d);
+const fmtP = (v, d=1) => v == null ? "—" : ((+v > 0 ? "+" : "") + (+v).toFixed(d) + "%");
+const fmtPno = (v, d=1) => v == null ? "—" : (+v).toFixed(d) + "%";
+
+function changeCls(v) {
+  if (v == null) return "neutral";
+  return +v > 0 ? "up" : +v < 0 ? "down" : "neutral";
+}
+
+function devCls(v) {
+  if (v == null) return "";
+  return +v > 0 ? "above-ma" : "below-ma";
+}
+
+function yieldCls(v) {
+  if (v == null) return "dim";
+  if (+v >= 4)   return "yield-hot";
+  if (+v >= 3.75)return "yield-good";
+  if (+v >= 3.5) return "yield-ok";
+  if (+v <= 2.5) return "yield-low";
+  return "";
+}
+
+/* ─── Render Table Head ──────────────────────────────────────────────── */
+function renderHead() {
+  const thead = document.getElementById("table-head");
+
+  // Group row
+  let groupHtml = "<tr>";
+  let i = 0;
+  while (i < COLS.length) {
+    const grp = COLS[i].group;
+    let span = 1;
+    while (i + span < COLS.length && !COLS[i + span].group && !["基本信息","行情","年度表现","均线定位","分红质量","买卖参考价","除息管理","信号"].includes(COLS[i+span].group)) span++;
+    if (grp) {
+      // count how many cols in this group
+      let gspan = 1;
+      while (i + gspan < COLS.length && !COLS[i+gspan].group) gspan++;
+      groupHtml += `<th colspan="${gspan}" class="th-group">${grp}</th>`;
+      i += gspan;
+    } else {
+      groupHtml += `<th class="th-group"></th>`;
+      i++;
+    }
+  }
+  groupHtml += "</tr>";
+
+  // Data header row
+  let dataHtml = "<tr>";
+  for (const col of COLS) {
+    const arrow = sortKey === col.key ? (sortDir === -1 ? "↓" : "↑") : "↕";
+    const active = sortKey === col.key ? "active-sort" : "";
+    const cls = [active, col.cls || ""].join(" ").trim();
+    const tipAttr = col.tip ? `data-tip="${col.tip}"` : "";
+    dataHtml += `<th class="${cls}" ${tipAttr} onclick="setSort('${col.key}')">${col.label}<span class="sort-arrow">${arrow}</span></th>`;
+  }
+  dataHtml += "</tr>";
+
+  thead.innerHTML = groupHtml + dataHtml;
+}
+
+/* ─── Render Rows ────────────────────────────────────────────────────── */
+function renderBody() {
+  let rows = [...allData];
+
+  // Filter
+  if (filterSignal !== "全部") {
+    rows = rows.filter(r => r.signal === filterSignal);
+  }
+  if (searchQ) {
+    const q = searchQ.toLowerCase();
+    rows = rows.filter(r =>
+      (r.code || "").includes(q) || (r.name || "").toLowerCase().includes(q)
+    );
+  }
+
+  // Sort
+  rows.sort((a, b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if (av == null) av = sortDir === -1 ? -Infinity : Infinity;
+    if (bv == null) bv = sortDir === -1 ? -Infinity : Infinity;
+    if (typeof av === "string") return sortDir * av.localeCompare(bv);
+    return sortDir * (av - bv);
+  });
+
+  const tbody = document.getElementById("table-body");
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${COLS.length}" class="state-msg">
+      <div class="icon">🔍</div>无匹配标的</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => renderRow(r)).join("");
+  document.getElementById("sort-info").textContent =
+    `共 ${rows.length} 只，按「${COLS.find(c=>c.key===sortKey)?.label}」${sortDir===-1?"↓":"↑"} 排序`;
+}
+
+function renderRow(r) {
+  const cells = COLS.map(col => {
+    let content = "—";
+    let extra = "";
+
+    switch (col.key) {
+      case "code":
+        content = `<span class="dim">${r.code}</span>`;
+        break;
+      case "name":
+        content = r.name || "—";
+        break;
+      case "total_mktcap":
+        content = r.total_mktcap != null ? (+r.total_mktcap).toLocaleString("zh", {maximumFractionDigits:0}) : "—";
+        break;
+      case "price":
+        content = priceWithBar(r);
+        break;
+      case "change_pct":
+        content = `<span class="${changeCls(r.change_pct)}">${fmtP(r.change_pct)}</span>`;
+        break;
+      case "pe":
+        content = `<span class="dim">${fmt(r.pe)}</span>`;
+        break;
+      case "pb":
+        content = `<span class="dim">${fmt(r.pb)}</span>`;
+        break;
+      case "return_1y":
+        content = `<span class="${changeCls(r.return_1y)}">${fmtP(r.return_1y)}</span>`;
+        break;
+      case "return_ytd":
+        content = `<span class="${changeCls(r.return_ytd)}">${fmtP(r.return_ytd)}</span>`;
+        break;
+      case "high_52w":
+        content = `<span class="dim">${fmt(r.high_52w)}</span>`;
+        break;
+      case "low_52w":
+        content = `<span class="dim">${fmt(r.low_52w)}</span>`;
+        break;
+      case "ma250":
+        content = `<span class="dim">${fmt(r.ma250)}</span>`;
+        break;
+      case "ma250_dev":
+        content = `<span class="${devCls(r.ma250_dev)}">${fmtP(r.ma250_dev)}</span>`;
+        break;
+      case "ma250w":
+        content = `<span class="dim">${fmt(r.ma250w, 2)}</span>`;
+        break;
+      case "ma250w_dev":
+        content = `<span class="${devCls(r.ma250w_dev)}">${fmtP(r.ma250w_dev)}</span>`;
+        break;
+      case "ttm_dps":
+        content = r.ttm_dps != null && r.ttm_dps > 0 ? fmt(r.ttm_dps, 3) : `<span class="faint">—</span>`;
+        break;
+      case "div_yield":
+        content = r.div_yield != null
+          ? `<span class="${yieldCls(r.div_yield)}">${fmtPno(r.div_yield)}</span>`
+          : `<span class="faint">—</span>`;
+        break;
+      case "div_cagr_3y":
+        content = r.div_cagr_3y != null
+          ? `<span class="${changeCls(r.div_cagr_3y)}">${fmtP(r.div_cagr_3y)}</span>`
+          : `<span class="faint">—</span>`;
+        break;
+      case "div_cagr_5y":
+        content = r.div_cagr_5y != null
+          ? `<span class="${changeCls(r.div_cagr_5y)}">${fmtP(r.div_cagr_5y)}</span>`
+          : `<span class="faint">—</span>`;
+        break;
+      case "price_at_400":
+        content = priceCmp(r.price, r.price_at_400, "price-buy-strong");
+        break;
+      case "price_at_375":
+        content = priceCmp(r.price, r.price_at_375, "price-buy");
+        break;
+      case "price_at_350":
+        content = priceCmp(r.price, r.price_at_350, "price-watch");
+        break;
+      case "price_at_300":
+        content = priceCmp(r.price, r.price_at_300, "price-profit");
+        break;
+      case "price_at_250":
+        content = priceCmp(r.price, r.price_at_250, "price-sell");
+        break;
+      case "last_ex_div_date":
+        content = `<span class="dim" style="font-size:10.5px">${r.last_ex_div_date || "—"}</span>`;
+        break;
+      case "last_div_amount":
+        content = r.last_div_amount != null && r.last_div_amount > 0
+          ? fmt(r.last_div_amount, 3) : `<span class="faint">—</span>`;
+        break;
+      case "days_since_ex_div":
+        if (r.days_since_ex_div == null) { content = `<span class="faint">—</span>`; break; }
+        const d = r.days_since_ex_div;
+        const dColor = d < 30 ? "color:var(--green)" : d > 300 ? "color:var(--gold)" : "color:var(--text-dim)";
+        content = `<span style="${dColor}">${d}天前</span>`;
+        break;
+      case "signal":
+        const sig = r.signal || "N/A";
+        const badgeCls = sig === "N/A" ? "badge-NA" : `badge-${sig}`;
+        content = `<span class="badge ${badgeCls}">${sig}</span>`;
+        break;
+      default:
+        content = r[col.key] != null ? r[col.key] : "—";
+    }
+
+    const alignCls = col.align === "left" ? "left text" : "";
+    const stickyExtra = col.cls || "";
+    return `<td class="${alignCls} ${stickyExtra}">${content}</td>`;
+  }).join("");
+
+  return `<tr>${cells}</tr>`;
+}
+
+/* Price with minibar --------------------------------------------------- */
+function priceWithBar(r) {
+  const p = r.price;
+  if (p == null) return "—";
+  if (r.low_52w == null || r.high_52w == null || r.high_52w <= r.low_52w) {
+    return fmt(p);
+  }
+  const pct = Math.max(0, Math.min(1, (p - r.low_52w) / (r.high_52w - r.low_52w)));
+  const barColor = pct > 0.8 ? "var(--red)" : pct < 0.3 ? "var(--green)" : "var(--gold)";
+  return `<div class="price-bar-wrap">
+    <span>${fmt(p)}</span>
+    <div class="price-bar-outer">
+      <div class="price-bar-inner" style="width:${(pct*100).toFixed(0)}%;background:${barColor}"></div>
+    </div>
+  </div>`;
+}
+
+/* Ref price with comparison to current --------------------------------- */
+function priceCmp(current, ref, cls) {
+  if (ref == null) return `<span class="faint">—</span>`;
+  const v = fmt(ref);
+  // Is current price below/above reference?
+  const below = current != null && current <= ref;
+  const indicator = below ? "▼" : "";
+  const tipColor = below ? "color:inherit;font-weight:600" : "";
+  return `<span class="${cls}" style="${tipColor}">${v} ${below ? indicator : ""}</span>`;
+}
+
+/* ─── Sorting ────────────────────────────────────────────────────────── */
+function setSort(key) {
+  if (sortKey === key) {
+    sortDir *= -1;
+  } else {
+    sortKey = key;
+    sortDir = -1;
+  }
+  renderHead();
+  renderBody();
+}
+
+/* ─── Summary ────────────────────────────────────────────────────────── */
+function updateSummary(stocks) {
+  document.getElementById("cnt-total").textContent   = stocks.length;
+  document.getElementById("cnt-qiangmai").textContent = stocks.filter(s => s.signal === "强买").length;
+  document.getElementById("cnt-mairu").textContent    = stocks.filter(s => s.signal === "买入").length;
+  document.getElementById("cnt-guanzhu").textContent  = stocks.filter(s => s.signal === "关注").length;
+  document.getElementById("cnt-chiyu").textContent    = stocks.filter(s => s.signal === "持有").length;
+  document.getElementById("cnt-sell").textContent     = stocks.filter(s => ["止盈","卖出"].includes(s.signal)).length;
+}
+
+/* ─── Filter / Search ────────────────────────────────────────────────── */
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    btn.classList.add("active");
+    filterSignal = btn.dataset.signal;
+    renderBody();
+  });
+});
+
+document.getElementById("search").addEventListener("input", e => {
+  searchQ = e.target.value.trim();
+  renderBody();
+});
+
+/* ─── Load Data ──────────────────────────────────────────────────────── */
+async function loadData() {
+  try {
+    const res  = await fetch(`data.json?t=${Date.now()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+
+    allData = json.stocks || [];
+    document.getElementById("updated-at").textContent = json.updated_at || "未知";
+
+    updateSummary(allData);
+    renderHead();
+    renderBody();
+  } catch (err) {
+    document.getElementById("table-body").innerHTML = `
+      <tr><td colspan="${COLS.length}" class="state-msg">
+        <div class="icon">⚠️</div>
+        无法加载 data.json<br>
+        <span style="font-size:11px;color:var(--text-faint)">
+          请确认 GitHub Actions 已运行并生成 data.json<br>
+          错误：${err.message}
+        </span>
+      </td></tr>`;
+  }
+}
+
+/* ─── Init ───────────────────────────────────────────────────────────── */
+renderHead();   // render empty head immediately
+loadData();
+</script>
+</body>
+</html>
